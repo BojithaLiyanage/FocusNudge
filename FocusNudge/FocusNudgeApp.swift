@@ -33,7 +33,7 @@ struct FocusNudgeApp: App {
         }
         .windowResizability(.contentSize)
 
-        MenuBarExtra("FocusNudge", systemImage: "bell.circle.fill") {
+        MenuBarExtra("FocusNudge", systemImage: "drop.fill") {
             Text("FocusNudge").font(.headline)
             Divider()
             Button(reminderTimer.isRunning ? "Stop" : "Start") {
