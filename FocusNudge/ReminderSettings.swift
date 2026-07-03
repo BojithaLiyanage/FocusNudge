@@ -4,37 +4,49 @@ import Combine
 
 class ReminderSettings: ObservableObject {
 
-    // Interval in minutes between reminders
-    @Published var intervalMinutes: Double {
-        didSet { UserDefaults.standard.set(intervalMinutes, forKey: "intervalMinutes") }
+    // MARK: - Water Reminder Settings
+    @Published var isWaterEnabled: Bool {
+        didSet { UserDefaults.standard.set(isWaterEnabled, forKey: "isWaterEnabled") }
+    }
+    
+    @Published var waterIntervalMinutes: Double {
+        didSet { UserDefaults.standard.set(waterIntervalMinutes, forKey: "waterIntervalMinutes") }
+    }
+    
+    @Published var waterMessage: String {
+        didSet { UserDefaults.standard.set(waterMessage, forKey: "waterMessage") }
+    }
+    
+    // MARK: - Look Away Reminder Settings
+    @Published var isLookAwayEnabled: Bool {
+        didSet { UserDefaults.standard.set(isLookAwayEnabled, forKey: "isLookAwayEnabled") }
+    }
+    
+    @Published var lookAwayIntervalMinutes: Double {
+        didSet { UserDefaults.standard.set(lookAwayIntervalMinutes, forKey: "lookAwayIntervalMinutes") }
+    }
+    
+    @Published var lookAwayMessage: String {
+        didSet { UserDefaults.standard.set(lookAwayMessage, forKey: "lookAwayMessage") }
     }
 
-    // Message shown in the overlay
-    @Published var message: String {
-        didSet { UserDefaults.standard.set(message, forKey: "message") }
-    }
-
-    // Background color stored as hex string
+    // MARK: - Shared Settings
     @Published var backgroundColorHex: String {
         didSet { UserDefaults.standard.set(backgroundColorHex, forKey: "backgroundColorHex") }
     }
 
-    // Opacity: 0.0 – 1.0
     @Published var backgroundOpacity: Double {
         didSet { UserDefaults.standard.set(backgroundOpacity, forKey: "backgroundOpacity") }
     }
 
-    // Animation style: "fade", "scale", "slide"
     @Published var animationStyle: String {
         didSet { UserDefaults.standard.set(animationStyle, forKey: "animationStyle") }
     }
 
-    // Duration the overlay stays visible (seconds)
     @Published var displayDuration: Double {
         didSet { UserDefaults.standard.set(displayDuration, forKey: "displayDuration") }
     }
     
-    // Add to ReminderSettings class
     @Published var soundEnabled: Bool {
         didSet { UserDefaults.standard.set(soundEnabled, forKey: "soundEnabled") }
     }
@@ -46,26 +58,40 @@ class ReminderSettings: ObservableObject {
     @Published var activeFromHour: Int {
         didSet { UserDefaults.standard.set(activeFromHour, forKey: "activeFromHour") }
     }
+    
     @Published var activeToHour: Int {
         didSet { UserDefaults.standard.set(activeToHour, forKey: "activeToHour") }
     }
 
-    
     init() {
-        self.intervalMinutes  = UserDefaults.standard.object(forKey: "intervalMinutes")  as? Double ?? 30
-        self.message          = UserDefaults.standard.string(forKey: "message")          ?? "💧 Time to hydrate!"
+        // Water
+        self.isWaterEnabled = UserDefaults.standard.object(forKey: "isWaterEnabled") as? Bool ?? true
+        self.waterIntervalMinutes = UserDefaults.standard.object(forKey: "waterIntervalMinutes") as? Double ?? 45
+        self.waterMessage = UserDefaults.standard.string(forKey: "waterMessage") ?? "💧 Time to hydrate!"
+        
+        // Look Away
+        self.isLookAwayEnabled = UserDefaults.standard.object(forKey: "isLookAwayEnabled") as? Bool ?? true
+        self.lookAwayIntervalMinutes = UserDefaults.standard.object(forKey: "lookAwayIntervalMinutes") as? Double ?? 20
+        self.lookAwayMessage = UserDefaults.standard.string(forKey: "lookAwayMessage") ?? "Time to look away for 20 seconds!"
+        
+        // Shared
         self.backgroundColorHex = UserDefaults.standard.string(forKey: "backgroundColorHex") ?? "#000000"
-        self.backgroundOpacity  = UserDefaults.standard.object(forKey: "backgroundOpacity")  as? Double ?? 0.5
-        self.animationStyle   = UserDefaults.standard.string(forKey: "animationStyle")   ?? "fade"
-        self.displayDuration  = UserDefaults.standard.object(forKey: "displayDuration")  as? Double ?? 5
+        self.backgroundOpacity = UserDefaults.standard.object(forKey: "backgroundOpacity") as? Double ?? 0.5
+        self.animationStyle = UserDefaults.standard.string(forKey: "animationStyle") ?? "fade"
+        self.displayDuration = UserDefaults.standard.object(forKey: "displayDuration") as? Double ?? 5
         self.soundEnabled = UserDefaults.standard.object(forKey: "soundEnabled") as? Bool ?? true
-        self.soundName    = UserDefaults.standard.string(forKey: "soundName") ?? "Ping"
+        self.soundName = UserDefaults.standard.string(forKey: "soundName") ?? "Ping"
         self.activeFromHour = UserDefaults.standard.object(forKey: "activeFromHour") as? Int ?? 9
-        self.activeToHour   = UserDefaults.standard.object(forKey: "activeToHour")   as? Int ?? 22
-
+        self.activeToHour = UserDefaults.standard.object(forKey: "activeToHour") as? Int ?? 22
+        
+        // Migrate legacy settings if they exist and are missing the new prefixed keys
+        if UserDefaults.standard.object(forKey: "waterIntervalMinutes") == nil,
+           let legacyInterval = UserDefaults.standard.object(forKey: "intervalMinutes") as? Double {
+            self.waterIntervalMinutes = legacyInterval
+            self.lookAwayIntervalMinutes = legacyInterval
+        }
     }
 
-    // Convenience: convert hex string → SwiftUI Color
     var backgroundColor: Color {
         Color(hex: backgroundColorHex) ?? .black
     }
@@ -79,5 +105,4 @@ class ReminderSettings: ObservableObject {
             return hour >= activeFromHour || hour < activeToHour
         }
     }
-    
 }

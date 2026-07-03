@@ -4,8 +4,9 @@ import SwiftUI
 
 class OverlayWindowManager {
     private var overlayWindow: NSWindow?
+    var waterManager: WaterIntakeManager? // We'll set this from AppCoordinator or FocusNudgeApp
 
-    func show(settings: ReminderSettings) {
+    func show(settings: ReminderSettings, type: ReminderType) {
         guard overlayWindow == nil else { return }  // prevent stacking
 
         // Use the main screen's full frame
@@ -26,11 +27,18 @@ class OverlayWindowManager {
         window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         window.ignoresMouseEvents = false
 
-        let overlayView = ReminderOverlayView(settings: settings) {
+        let overlayView = ReminderOverlayView(settings: settings, type: type) {
             self.dismiss()
         }
+        
+        var hostingView: NSView
+        if let waterManager = waterManager {
+            hostingView = NSHostingView(rootView: overlayView.environmentObject(waterManager))
+        } else {
+            hostingView = NSHostingView(rootView: overlayView)
+        }
 
-        window.contentView = NSHostingView(rootView: overlayView)
+        window.contentView = hostingView
         window.makeKeyAndOrderFront(nil)
         overlayWindow = window
     }

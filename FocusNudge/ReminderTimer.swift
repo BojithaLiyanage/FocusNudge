@@ -2,33 +2,72 @@
 import Foundation
 import Combine
 
+enum ReminderType {
+    case water
+    case lookAway
+}
+
 class ReminderTimer: ObservableObject {
-    @Published var isRunning = false
+    @Published var isWaterRunning = false
+    @Published var isLookAwayRunning = false
 
-    private var timer: AnyCancellable?
-    private var onFire: (() -> Void)?
+    private var waterTimer: AnyCancellable?
+    private var lookAwayTimer: AnyCancellable?
+    
+    private var onFire: ((ReminderType) -> Void)?
 
-    func start(intervalMinutes: Double, onFire: @escaping () -> Void) {
+    func setOnFire(_ onFire: @escaping (ReminderType) -> Void) {
         self.onFire = onFire
-        let interval = intervalMinutes * 60   // convert to seconds
-        isRunning = true
+    }
 
-        timer = Timer.publish(every: interval, on: .main, in: .common)
+    // MARK: - Water Timer
+    
+    func startWater(intervalMinutes: Double) {
+        let interval = intervalMinutes * 60
+        isWaterRunning = true
+        waterTimer = Timer.publish(every: interval, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in
-                self?.onFire?()
+                self?.onFire?(.water)
             }
     }
 
-    func stop() {
-        timer?.cancel()
-        timer = nil
-        isRunning = false
+    func stopWater() {
+        waterTimer?.cancel()
+        waterTimer = nil
+        isWaterRunning = false
     }
 
-    // Call this when the user changes the interval in preferences
-    func restart(intervalMinutes: Double) {
-        stop()
-        start(intervalMinutes: intervalMinutes, onFire: onFire ?? {})
+    func restartWater(intervalMinutes: Double) {
+        stopWater()
+        startWater(intervalMinutes: intervalMinutes)
+    }
+
+    // MARK: - Look Away Timer
+    
+    func startLookAway(intervalMinutes: Double) {
+        let interval = intervalMinutes * 60
+        isLookAwayRunning = true
+        lookAwayTimer = Timer.publish(every: interval, on: .main, in: .common)
+            .autoconnect()
+            .sink { [weak self] _ in
+                self?.onFire?(.lookAway)
+            }
+    }
+
+    func stopLookAway() {
+        lookAwayTimer?.cancel()
+        lookAwayTimer = nil
+        isLookAwayRunning = false
+    }
+
+    func restartLookAway(intervalMinutes: Double) {
+        stopLookAway()
+        startLookAway(intervalMinutes: intervalMinutes)
+    }
+    
+    func stopAll() {
+        stopWater()
+        stopLookAway()
     }
 }
