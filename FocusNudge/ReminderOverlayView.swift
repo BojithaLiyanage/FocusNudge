@@ -13,6 +13,12 @@ struct ReminderOverlayView: View {
     // Callback to dismiss the overlay
     var onDismiss: () -> Void
 
+    private var accentColors: [Color] { Theme.gradient(for: type) }
+
+    private var goalProgress: Double {
+        Double(waterManager.intakeForDay()) / Double(max(settings.dailyGoalML, 1))
+    }
+
     var body: some View {
         ZStack {
             // ── Background ──────────────────────────────────────────
@@ -20,18 +26,42 @@ struct ReminderOverlayView: View {
                 .opacity(settings.backgroundOpacity)
                 .ignoresSafeArea()
 
+            RadialGradient(
+                colors: [accentColors.first!.opacity(0.22), Color.clear],
+                center: .center, startRadius: 0, endRadius: 460
+            )
+            .ignoresSafeArea()
+
             // ── Content ─────────────────────────────────────────────
-            VStack(spacing: 24) {
-                HStack(spacing: 16) {
-                    Image(systemName: type == .water ? "drop.fill" : "eye.fill")
-                        .font(.system(size: 40))
-                        .foregroundColor(.white)
-                        .shadow(color: .black.opacity(0.6), radius: 8, x: 0, y: 4)
-                    
+            VStack(spacing: 28) {
+                VStack(spacing: 18) {
+                    ZStack {
+                        Circle()
+                            .fill(LinearGradient(colors: accentColors.map { $0.opacity(0.35) }, startPoint: .top, endPoint: .bottom))
+                            .frame(width: 96, height: 96)
+                        Circle()
+                            .strokeBorder(.white.opacity(0.3), lineWidth: 1.5)
+                            .frame(width: 96, height: 96)
+                        Image(systemName: type == .water ? "drop.fill" : "eye.fill")
+                            .font(.system(size: 40))
+                            .foregroundColor(.white)
+                    }
+                    .shadow(color: accentColors.last!.opacity(0.5), radius: 20, x: 0, y: 8)
+
                     Text(type == .water ? settings.waterMessage : settings.lookAwayMessage)
-                        .font(.system(size: 48, weight: .semibold, design: .rounded))
+                        .font(.system(size: 44, weight: .semibold, design: .rounded))
                         .foregroundColor(.white)
                         .shadow(color: .black.opacity(0.6), radius: 8, x: 0, y: 4)
+
+                    if type == .water {
+                        VStack(spacing: 6) {
+                            WaterWaveView(progress: goalProgress, size: 56, showsPercentLabel: true, colors: accentColors)
+                            Text("\(waterManager.intakeForDay()) / \(settings.dailyGoalML) ml today")
+                                .font(.system(size: 14, weight: .medium, design: .rounded))
+                                .foregroundColor(.white.opacity(0.75))
+                        }
+                        .padding(.top, 4)
+                    }
                 }
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 60)
@@ -39,41 +69,26 @@ struct ReminderOverlayView: View {
                 if type == .water {
                     HStack(spacing: 16) {
                         Button("Dismiss") {
-                            waterManager.addIntake(amountML: 0)
                             dismiss()
                         }
-                        .buttonStyle(DismissButtonStyle(isPrimary: false))
+                        .buttonStyle(DismissButtonStyle(isPrimary: false, tint: accentColors.last!))
                         .keyboardShortcut(.escape, modifiers: [])
 
-                        Button("+ 100 ml") {
-                            waterManager.addIntake(amountML: 100)
-                            dismiss()
+                        ForEach(settings.drinkContainers) { container in
+                            Button {
+                                waterManager.addIntake(amountML: container.amountML)
+                                dismiss()
+                            } label: {
+                                Label("+ \(container.amountML) ml", systemImage: container.icon)
+                            }
+                            .buttonStyle(DismissButtonStyle(isPrimary: true, tint: accentColors.last!))
                         }
-                        .buttonStyle(DismissButtonStyle(isPrimary: true))
-                        
-                        Button("+ 200 ml") {
-                            waterManager.addIntake(amountML: 200)
-                            dismiss()
-                        }
-                        .buttonStyle(DismissButtonStyle(isPrimary: true))
-                        
-                        Button("+ 500 ml") {
-                            waterManager.addIntake(amountML: 500)
-                            dismiss()
-                        }
-                        .buttonStyle(DismissButtonStyle(isPrimary: true))
-                        
-                        Button("+ 1000 ml") {
-                            waterManager.addIntake(amountML: 1000)
-                            dismiss()
-                        }
-                        .buttonStyle(DismissButtonStyle(isPrimary: true))
                     }
                 } else {
                     Button("Dismiss") {
                         dismiss()
                     }
-                    .buttonStyle(DismissButtonStyle(isPrimary: true))
+                    .buttonStyle(DismissButtonStyle(isPrimary: true, tint: accentColors.last!))
                     .keyboardShortcut(.escape, modifiers: [])
                 }
             }
@@ -135,19 +150,22 @@ struct AppearanceModifier: ViewModifier {
 // ── Dismiss button style ──────────────────────────────────────────────────────
 struct DismissButtonStyle: ButtonStyle {
     var isPrimary: Bool = false
-    
+    var tint: Color = .accentColor
+
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: 16, weight: .medium))
-            .foregroundColor(.white.opacity(0.85))
+            .font(.system(size: 16, weight: .semibold, design: .rounded))
+            .foregroundColor(.white.opacity(0.95))
             .padding(.horizontal, 24)
             .padding(.vertical, 12)
             .background(
                 Capsule()
-                    .fill(isPrimary ? Color.accentColor.opacity(configuration.isPressed ? 0.8 : 1.0) : Color.white.opacity(configuration.isPressed ? 0.25 : 0.15))
-                    .overlay(Capsule().stroke(isPrimary ? Color.accentColor : Color.white.opacity(0.3), lineWidth: 1))
+                    .fill(isPrimary
+                          ? AnyShapeStyle(LinearGradient(colors: [tint.opacity(configuration.isPressed ? 0.75 : 1.0), tint.opacity(configuration.isPressed ? 0.55 : 0.75)], startPoint: .top, endPoint: .bottom))
+                          : AnyShapeStyle(Color.white.opacity(configuration.isPressed ? 0.25 : 0.15)))
+                    .overlay(Capsule().stroke(isPrimary ? tint.opacity(0.6) : Color.white.opacity(0.3), lineWidth: 1))
             )
-            .scaleEffect(configuration.isPressed ? 0.97 : 1)
-            .animation(.easeOut(duration: 0.1), value: configuration.isPressed)
+            .scaleEffect(configuration.isPressed ? 0.95 : 1)
+            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: configuration.isPressed)
     }
 }

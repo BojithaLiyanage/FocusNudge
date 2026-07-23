@@ -136,8 +136,27 @@ class WaterIntakeManager: ObservableObject {
     
     // MARK: - Chart Aggregations
     
-    func exactTimeDataForDay(date: Date = Date()) -> [ChartDataPoint] {
-        return recordsForDate(date: date).map { ChartDataPoint(date: $0.date, amountML: $0.amountML) }
+    /// Running (cumulative) total across the day, starting at 0 and stepping up at each logged entry.
+    func cumulativeDataForDay(date: Date = Date()) -> [ChartDataPoint] {
+        let calendar = Calendar.current
+        let startOfDay = calendar.startOfDay(for: date)
+        let dayRecords = recordsForDate(date: date)
+
+        var data: [ChartDataPoint] = [ChartDataPoint(date: startOfDay, amountML: 0)]
+        var running = 0
+        for record in dayRecords {
+            running += record.amountML
+            data.append(ChartDataPoint(date: record.date, amountML: running))
+        }
+
+        // Extend a flat line to "now" (today) or end of day (past days) so the chart doesn't stop short.
+        let endPoint = calendar.isDateInToday(date)
+            ? Date()
+            : calendar.date(byAdding: .day, value: 1, to: startOfDay)!.addingTimeInterval(-1)
+        if endPoint > data.last!.date {
+            data.append(ChartDataPoint(date: endPoint, amountML: running))
+        }
+        return data
     }
     
     func dailyDataForLast7Days() -> [ChartDataPoint] {

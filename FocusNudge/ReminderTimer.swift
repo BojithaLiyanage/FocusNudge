@@ -7,67 +7,28 @@ enum ReminderType {
     case lookAway
 }
 
+/// A lightweight clock that ticks periodically so callers can re-check a schedule.
+/// Ticks are frequent enough (< 60s) to guarantee every wall-clock minute is observed at least once.
 class ReminderTimer: ObservableObject {
-    @Published var isWaterRunning = false
-    @Published var isLookAwayRunning = false
+    private var cancellable: AnyCancellable?
+    private var onTick: (() -> Void)?
 
-    private var waterTimer: AnyCancellable?
-    private var lookAwayTimer: AnyCancellable?
-    
-    private var onFire: ((ReminderType) -> Void)?
-
-    func setOnFire(_ onFire: @escaping (ReminderType) -> Void) {
-        self.onFire = onFire
+    func setOnTick(_ onTick: @escaping () -> Void) {
+        self.onTick = onTick
     }
 
-    // MARK: - Water Timer
-    
-    func startWater(intervalMinutes: Double) {
-        let interval = intervalMinutes * 60
-        isWaterRunning = true
-        waterTimer = Timer.publish(every: interval, on: .main, in: .common)
+    func start(intervalSeconds: TimeInterval = 15) {
+        stop()
+        cancellable = Timer.publish(every: intervalSeconds, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in
-                self?.onFire?(.water)
+                self?.onTick?()
             }
+        onTick?()
     }
 
-    func stopWater() {
-        waterTimer?.cancel()
-        waterTimer = nil
-        isWaterRunning = false
-    }
-
-    func restartWater(intervalMinutes: Double) {
-        stopWater()
-        startWater(intervalMinutes: intervalMinutes)
-    }
-
-    // MARK: - Look Away Timer
-    
-    func startLookAway(intervalMinutes: Double) {
-        let interval = intervalMinutes * 60
-        isLookAwayRunning = true
-        lookAwayTimer = Timer.publish(every: interval, on: .main, in: .common)
-            .autoconnect()
-            .sink { [weak self] _ in
-                self?.onFire?(.lookAway)
-            }
-    }
-
-    func stopLookAway() {
-        lookAwayTimer?.cancel()
-        lookAwayTimer = nil
-        isLookAwayRunning = false
-    }
-
-    func restartLookAway(intervalMinutes: Double) {
-        stopLookAway()
-        startLookAway(intervalMinutes: intervalMinutes)
-    }
-    
-    func stopAll() {
-        stopWater()
-        stopLookAway()
+    func stop() {
+        cancellable?.cancel()
+        cancellable = nil
     }
 }
